@@ -6,9 +6,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.javadocmd.simplelatlng.LatLng;
 
+import it.polito.tdp.metroparis.model.ConnessioneVelocita;
 import it.polito.tdp.metroparis.model.Fermata;
 import it.polito.tdp.metroparis.model.Linea;
 
@@ -67,6 +69,103 @@ public class MetroDAO {
 
 		return linee;
 	}
+	
+	public boolean esisteConnessione(Fermata partenza, Fermata arrivo) {
+		
+		String sql="SELECT COUNT(*) AS cnt " + "FROM connessione " + 
+				"WHERE id_stazP=? " + "AND id_stazA=?";
+		Connection conn = DBConnect.getConnection();
+		PreparedStatement st;
+		
+		try {
+			st = conn.prepareStatement(sql);
+			st.setInt(1, partenza.getIdFermata());
+			st.setInt(2, arrivo.getIdFermata());
+			
+			ResultSet rs = st.executeQuery();
+			
+			rs.next(); //mi posiziono sulla prima e unica riga
+			
+			int numero = rs.getInt("cnt");
+			
+			conn.close();
+			
+			return (numero>0);
+	
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			
+		}
+		return false;
+		
+	}
 
+	public List<Fermata> stazioniArrivo(Fermata partenza, Map<Integer, Fermata> idMap) {
+		String sql = "SELECT id_stazA "+"FROM connessione "+"WHERE id_stazP=? ";
+		Connection conn = DBConnect.getConnection();
+		PreparedStatement st;
+		
+		try {
+			st = conn.prepareStatement(sql);
+			st.setInt(1, partenza.getIdFermata());
+			
+			ResultSet rs = st.executeQuery();
+			
+			List<Fermata> result = new ArrayList<>();
+			
+			while(rs.next()) {
+				result.add(idMap.get(rs.getInt("id_stazA")));
+				//result.add(new Fermata(rs.getInt("id_stazA"),null, null));//oggetto effimero NON VA BENE!!
+				//non creo la staz part con tutti i campi ma ho gia' i vertici, mi basta collegarli.
+				//per fare l'arco cerco la staz con lo stesso id di quella effimera
+			}
+			conn.close();
+			
+			return result;
+	
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+		
+		
+	}
+	
+	public List<ConnessioneVelocita> getConnessioneVelocita(){
+		
+		String sql = "SELECT connessione.id_stazP, connessione.id_stazA, MAX(linea.velocita) AS velocita "+
+				"FROM connessione, linea "+
+				"WHERE connessione.id_linea = linea.id_linea "+
+				"GROUP BY connessione.id_stazP, connessione.id_stazA ";
+		
+		
+		try {
+			Connection conn = DBConnect.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			
+			ResultSet rs = st.executeQuery();
+			
+			List<ConnessioneVelocita> result = new ArrayList<ConnessioneVelocita>();
+			
+			while(rs.next()) {
+				ConnessioneVelocita item = new ConnessioneVelocita(rs.getInt("id_stazP"), 
+						rs.getInt("id_stazA"), rs.getDouble("velocita"));
+				result.add(item);
+				
+			}
+			conn.close();
+			
+			return result;
+	
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+		
+		
+	}
 
 }
